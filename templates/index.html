@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>电池容量预测预警平台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+  <link rel="stylesheet" href="{% static 'toast.css' %}">   
+  <!-- Tailwind 配置 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            secondary: '#36CFC9',
+            warning: '#FF7D00',
+            danger: '#F53F3F',
+            neutral: '#86909C',
+            light: '#F2F3F5',
+            dark: '#1D2129'
+          },
+          fontFamily: {
+            inter: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .card-shadow {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      }
+      .btn-hover {
+        transition: all 0.3s ease;
+      }
+      .btn-hover:hover {
+        transform: translateY(-2px);
+      }
+    }
+  </style>
+</head>
+<body class="font-inter bg-gray-50 text-dark min-h-screen">
+  <!-- 顶部导航栏 -->
+  <header class="bg-white shadow-sm sticky top-0 z-50 transition-all duration-300">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-battery-three-quarters text-primary text-2xl"></i>
+        <h1 class="text-xl font-bold text-primary">电池容量预测预警平台</h1>
+      </div>
+      
+      <nav class="hidden md:flex items-center space-x-1">
+        <button class="nav-btn active px-4 py-2 rounded-md font-medium text-primary border-b-2 border-primary" data-target="model-training">
+          模型训练
+        </button>
+        <button class="nav-btn px-4 py-2 rounded-md font-medium text-neutral hover:text-primary transition-colors" data-target="health-prediction">
+          健康状态预测
+        </button>
+        <button class="nav-btn px-4 py-2 rounded-md font-medium text-neutral hover:text-primary transition-colors" data-target="prediction-chart">
+          预测结果图
+        </button>
+        <button class="nav-btn px-4 py-2 rounded-md font-medium text-neutral hover:text-primary transition-colors" data-target="prediction-metrics">
+          预测指标
+        </button>
+      </nav>
+      {% if request.user.is_authenticated %}
+       <!-- 用户信息区域 -->
+      <div class="relative">
+        <button id="user-menu-btn" class="flex items-center space-x-2 focus:outline-none">
+          <img src="https://picsum.photos/id/1005/40/40" alt="用户头像" class="w-8 h-8 rounded-full object-cover border-2 border-primary/20">
+          <span class="hidden md:inline-block font-medium">{{ request.user.username }}</span>
+          <i class="fa fa-chevron-down text-xs text-neutral"></i>
+        </button>
+        
+        <!-- 用户下拉菜单 -->
+        <div id="user-menu" class="absolute right-0 mt-2 w-48 bg-white rounded-lg user-menu-shadow hidden z-50">
+          <div class="py-2">
+            <a href="#" class="block px-4 py-2 text-sm text-neutral hover:bg-light hover:text-primary transition-colors">
+              <i class="fa fa-user mr-2"></i>个人信息
+            </a>
+            <a href="{% url 'login_register:change_password' %}" class="block px-4 py-2 text-sm text-neutral hover:bg-light hover:text-primary transition-colors">
+              <i class="fa fa-cog mr-2"></i>修改密码
+            </a>
+            <div class="border-t border-gray-100 my-1"></div>
+            <a href="{% url 'login_register:logout' %}" class="block px-4 py-2 text-sm text-danger hover:bg-light transition-colors">
+              <i class="fa fa-sign-out mr-2"></i>退出登录
+            </a>
+          </div>
+        </div>
+        {% else %}
+            <a href="{% url 'login_register:login' %}">登录</a> | <a href="{% url 'login_register:register' %}">注册</a>
+        {% endif %}  
+      </div>  
+        
+        
+      <button class="md:hidden text-primary text-xl" id="mobile-menu-btn">
+        <i class="fa fa-bars"></i>
+      </button>
+    </div>
+      
+    <!-- 移动端菜单 -->
+    <div class="md:hidden hidden bg-white border-t" id="mobile-menu">
+      <div class="container mx-auto px-4 py-2 flex flex-col space-y-1">
+        <button class="nav-btn active w-full text-left px-4 py-2 rounded-md font-medium text-primary" data-target="model-training">
+          模型训练
+        </button>
+        <button class="nav-btn w-full text-left px-4 py-2 rounded-md font-medium text-neutral hover:text-primary transition-colors" data-target="health-prediction">
+          健康状态预测
+        </button>
+        <button class="nav-btn w-full text-left px-4 py-2 rounded-md font-medium text-neutral hover:text-primary transition-colors" data-target="prediction-chart">
+          预测结果图
+        </button>
+        <button class="nav-btn w-full text-left px-4 py-2 rounded-md font-medium text-neutral hover:text-primary transition-colors" data-target="prediction-metrics">
+          预测指标
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主内容区 -->
+  <main class="container mx-auto px-4 py-8">
+    <!-- 模型训练模块 -->
+    <section id="model-training" class="content-section">
+      <div class="bg-white rounded-xl p-6 card-shadow mb-8">
+        <h2 class="text-2xl font-bold mb-6 flex items-center">
+          <i class="fa fa-cogs text-primary mr-2"></i>模型训练
+        </h2>
+        
+        <form id="training-form" class="space-y-6">
+          <div class="grid md:grid-cols-2 gap-6">
+            <!-- 模型训练模块中文件上传区域的修改 -->
+<div class="md:col-span-2">
+  <label for="train-data" class="block text-sm font-medium text-neutral mb-2">选择训练数据（可上传多个）</label>
+  <div class="flex items-center justify-center w-full">
+    <label for="train-data" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-neutral rounded-lg cursor-pointer bg-light hover:bg-gray-100 transition-colors">
+      <div class="flex flex-col items-center justify-center pt-5 pb-6">
+        <i class="fa fa-cloud-upload text-3xl text-neutral mb-2"></i>
+        <p class="mb-1 text-sm text-neutral"><span class="font-semibold">点击上传</span> 或拖放多个文件</p>
+        <p class="text-xs text-neutral">支持 CSV, Excel 格式，可选择多个文件</p>
+      </div>
+      <!-- 添加 multiple 属性支持多文件选择 -->
+      <input id="train-data" type="file" class="hidden" accept=".csv,.xlsx,.xls" multiple />
+    </label>
+  </div>
+  
+  <!-- 新增：已上传文件列表展示区域 -->
+  <div id="file-list" class="mt-4 hidden">
+    <h4 class="text-sm font-medium text-neutral mb-2 flex items-center">
+      <i class="fa fa-files-o mr-2"></i>已上传文件
+    </h4>
+    <div id="files-container" class="space-y-2 max-h-40 overflow-y-auto pr-2">
+      <!-- 动态添加已上传文件 -->
+    </div>
+  </div>
+</div>
+            
+            <div>
+              <label for="input-length" class="block text-sm font-medium text-neutral mb-2">输入步长</label>
+              <input type="number" id="input-length" min="1" value="32" 
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                placeholder="输入时间步长">
+              <p class="mt-1 text-xs text-neutral">用于模型训练的历史数据长度，通常为8或16或24或32</p>
+            </div>
+            
+            <div>
+              <label for="predict-length" class="block text-sm font-medium text-neutral mb-2">预测步长</label>
+              <input type="number" id="predict-length" min="1" value="4" 
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                placeholder="输入预测步长">
+              <p class="mt-1 text-xs text-neutral">需要预测的未来数据长度，通常为4或8或12或16</p>
+            </div>
+            
+            <div>
+              <label for="learning-rate" class="block text-sm font-medium text-neutral mb-2">学习率</label>
+              <input type="number" id="learning-rate" min="0.0001" max="0.1" step="0.0001" value="0.001" 
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                placeholder="输入学习率">
+              <p class="mt-1 text-xs text-neutral">模型训练学习率，通常为0.0001-0.01</p>
+            </div>
+            
+            <div class="md:col-span-2">
+              <label for="model-name" class="block text-sm font-medium text-neutral mb-2">模型名称</label>
+              <input type="text" id="model-name" value="battery_model_v1" 
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                placeholder="模型名称，用于后续选择">
+            </div>
+          </div>
+          
+          <div class="flex justify-center pt-4">
+            <button type="button" id="start-training" class="px-8 py-3 bg-primary text-white rounded-lg font-medium shadow-md btn-hover flex items-center">
+              <i class="fa fa-play mr-2"></i>开始训练
+            </button>
+          </div>
+        </form>
+      </div>
+      
+      <!-- 训练状态指示器 -->
+      <div id="training-status" class="hidden bg-white rounded-xl p-6 card-shadow">
+        <h3 class="text-lg font-semibold mb-4 flex items-center">
+          <i class="fa fa-spinner fa-spin text-primary mr-2"></i>训练中
+        </h3>
+        <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+          <div id="training-progress" class="bg-primary h-2.5 rounded-full" style="width: 0%"></div>
+        </div>
+        <p id="training-message" class="text-sm text-neutral">准备开始训练...</p>
+      </div>
+    </section>
+
+    <!-- 健康状态预测模块 -->
+    <section id="health-prediction" class="content-section hidden">
+      <div class="bg-white rounded-xl p-6 card-shadow">
+        <h2 class="text-2xl font-bold mb-6 flex items-center">
+          <i class="fa fa-heartbeat text-primary mr-2"></i>健康状态预测
+        </h2>
+        
+        <form id="prediction-form" class="space-y-6">
+          <div class="grid md:grid-cols-2 gap-6">
+            <div>
+              <label for="model-select" class="block text-sm font-medium text-neutral mb-2">选择模型</label>
+              <select id="model-select" 
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all appearance-none bg-white">
+                <option value="">-- 请选择训练好的模型 --</option>
+              </select>
+              <div class="relative">
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-neutral">
+                  <i class="fa fa-chevron-down text-xs"></i>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <label for="warning-threshold" class="block text-sm font-medium text-neutral mb-2">输入预警电池电量(%)</label>
+              <input type="number" id="warning-threshold" min="0" max="100" value="20" 
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                placeholder="输入预警阈值">
+              <p class="mt-1 text-xs text-neutral">当预测容量低于此值时触发预警，通常为10-30%</p>
+            </div>
+            
+            <div class="md:col-span-2">
+  <label for="predict-data" class="block text-sm font-medium text-neutral mb-2">上传预测数据</label>
+  <div class="flex items-center justify-center w-full">
+    <label for="predict-data" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-neutral rounded-lg cursor-pointer bg-light hover:bg-gray-100 transition-colors">
+      <div class="flex flex-col items-center justify-center pt-5 pb-6">
+        <i class="fa fa-file-text-o text-3xl text-neutral mb-2"></i>
+        <p class="mb-1 text-sm text-neutral"><span class="font-semibold">点击上传</span> 或拖放预测数据</p>
+        <p class="text-xs text-neutral">支持 CSV, Excel 格式，需与训练数据格式一致</p>
+      </div>
+      <input id="predict-data" type="file" class="hidden" accept=".csv,.xlsx,.xls" />
+    </label>
+  </div>
+  
+  <!-- 新增：上传文件预览区域 -->
+  <div id="file-preview" class="mt-4 hidden">
+    <div class="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+      <i id="file-icon" class="fa fa-file-text-o text-xl text-primary mr-3"></i>
+      <div class="flex-1 min-w-0">
+        <p id="file-name" class="text-sm font-medium text-gray-900 truncate"></p>
+        <p id="file-size" class="text-xs text-gray-500"></p>
+      </div>
+      <button id="remove-file" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+        <i class="fa fa-times-circle"></i>
+      </button>
+    </div>
+  </div>
+</div>
+          </div>
+          
+          <div class="flex justify-center pt-4">
+            <button type="button" id="start-prediction" class="px-8 py-3 bg-primary text-white rounded-lg font-medium shadow-md btn-hover flex items-center">
+              <i class="fa fa-line-chart mr-2"></i>开始预测
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- 预测结果图模块 -->
+    <section id="prediction-chart" class="content-section hidden">
+      <div class="bg-white rounded-xl p-6 card-shadow">
+        <h2 class="text-2xl font-bold mb-6 flex items-center">
+          <i class="fa fa-area-chart text-primary mr-2"></i>预测结果图
+        </h2>
+        
+        <div class="flex justify-center items-center h-96 border border-gray-200 rounded-lg bg-light">
+          <div id="chart-container" class="w-full h-full p-4">
+            <canvas id="prediction-chart-canvas"></canvas>
+          </div>
+        </div>
+        
+        <div class="mt-4 flex justify-center text-sm text-neutral">
+          <p>提示：预测结果将显示实际值与预测值的对比曲线</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 预测指标模块 -->
+    <section id="prediction-metrics" class="content-section hidden">
+      <div class="bg-white rounded-xl p-6 card-shadow">
+        <h2 class="text-2xl font-bold mb-6 flex items-center">
+          <i class="fa fa-bar-chart text-primary mr-2"></i>预测指标
+        </h2>
+        
+        <div class="grid md:grid-cols-3 gap-6">
+          <div class="bg-light rounded-lg p-6 text-center transform transition-transform hover:scale-105">
+            <h3 class="text-lg font-semibold text-neutral mb-2">RMSE</h3>
+            <p id="rmse-value" class="text-3xl font-bold text-primary">--</p>
+            <p class="mt-2 text-sm text-neutral">均方根误差</p>
+          </div>
+          
+          <div class="bg-light rounded-lg p-6 text-center transform transition-transform hover:scale-105">
+            <h3 class="text-lg font-semibold text-neutral mb-2">MAE</h3>
+            <p id="mae-value" class="text-3xl font-bold text-primary">--</p>
+            <p class="mt-2 text-sm text-neutral">平均绝对误差</p>
+          </div>
+          
+          <div class="bg-light rounded-lg p-6 text-center transform transition-transform hover:scale-105">
+            <h3 class="text-lg font-semibold text-neutral mb-2">R²</h3>
+            <p id="r2-value" class="text-3xl font-bold text-primary">--</p>
+            <p class="mt-2 text-sm text-neutral">决定系数</p>
+          </div>
+        </div>
+        
+        <div class="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-100">
+          <h4 class="font-medium text-primary mb-2 flex items-center">
+            <i class="fa fa-info-circle mr-2"></i>指标说明
+          </h4>
+          <ul class="text-sm text-neutral space-y-2">
+            <li><span class="font-medium">RMSE</span>：均方根误差，值越小表示预测精度越高</li>
+            <li><span class="font-medium">MAE</span>：平均绝对误差，值越小表示预测偏差越小</li>
+            <li><span class="font-medium">R²</span>：决定系数，越接近1表示模型拟合效果越好</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="bg-white border-t mt-12 py-6">
+    <div class="container mx-auto px-4 text-center text-neutral text-sm">
+      <p>© 2025 电池容量预测预警平台 - 版权所有</p>
+    </div>
+  </footer>
+
+  <!-- 预警通知 -->
+  <div id="warning-alert" class="fixed bottom-6 right-6 bg-danger text-white p-4 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-500 flex items-center max-w-xs">
+    <i class="fa fa-exclamation-triangle text-xl mr-3"></i>
+    <div>
+      <h4 class="font-bold">电池容量预警</h4>
+      <p class="text-sm">预测电池容量将低于设定阈值</p>
+    </div>
+    <button id="close-alert" class="ml-4 text-white hover:text-gray-200">
+      <i class="fa fa-times"></i>
+    </button>
+  </div>
+  <!-- Toast 容器 -->
+<div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+  <script src="{% static 'toast.js' %}"></script>    
+  <script src="{% static 'index.js' %}"></script>
+</body>
+</html>

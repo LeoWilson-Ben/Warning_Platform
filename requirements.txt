@@ -1,0 +1,16 @@
+asgiref @ file:///C:/b/abs_ae1n0p_8_w/croot/asgiref_1724072476516/work
+certifi==2025.6.15
+charset-normalizer==3.4.2
+Django==5.0.3
+django-redis==6.0.0
+idna==3.10
+mysqlclient==2.2.7
+pillow==11.2.1
+PyMySQL==1.1.1
+redis==6.2.0
+requests==2.32.4
+setuptools==78.1.1
+sqlparse @ file:///C:/b/abs_68npyz0s6_/croot/sqlparse_1734704476369/work
+tzdata==2025.2
+urllib3==2.5.0
+wheel==0.45.1

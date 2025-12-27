@@ -1,0 +1,85 @@
+/* Toast容器样式 */
+#toast-container {
+  position: fixed;
+  top: 4px;
+  right: 4px;
+  z-index: 9999; /* 确保在最上层 */
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* 多个toast之间的间距 */
+  width: 320px; /* 固定宽度 */
+}
+
+/* 基础Toast样式 */
+.toast {
+  padding: 12px 16px;
+  border-radius: 6px;
+  border: 1px solid;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  transition: all 0.3s ease;
+  cursor: pointer; /* 点击可关闭 */
+  opacity: 0;
+  transform: translateX(100%); /* 初始在容器外右侧 */
+}
+
+/* Toast显示动画 */
+.toast.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* 不同类型Toast的样式 */
+.toast-success {
+  background-color: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.toast-error {
+  background-color: #fee2e2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.toast-warning {
+  background-color: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.toast-info {
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+
+/* Toast图标 */
+.toast-icon {
+  margin-right: 12px;
+  font-size: 20px;
+  flex-shrink: 0; /* 防止图标被压缩 */
+}
+
+/* Toast文本 */
+.toast-message {
+  flex-grow: 1; /* 文本占满剩余空间 */
+  line-height: 1.5;
+}
+
+/* 关闭按钮 */
+.toast-close {
+  margin-left: 12px;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
